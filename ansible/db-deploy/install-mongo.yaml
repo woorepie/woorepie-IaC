@@ -1,0 +1,31 @@
+---
+- name: Install MongoDB on Ubuntu 24.04
+  hosts: mongodb
+  become: yes
+
+  tasks:
+    - name: Import MongoDB public GPG key
+      ansible.builtin.shell: |
+        curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | \
+        gpg --dearmor -o /usr/share/keyrings/mongodb-server-8.0.gpg
+
+    - name: Add MongoDB APT repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.0 multiverse"
+        filename: "mongodb-org-8.0"
+        state: present
+
+    - name: Update APT cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Install MongoDB
+      ansible.builtin.apt:
+        name: mongodb-org
+        state: present
+
+    - name: Enable and start MongoDB service
+      ansible.builtin.service:
+        name: mongod
+        enabled: yes
+        state: started
