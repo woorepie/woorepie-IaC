@@ -1,0 +1,24 @@
+global
+    log /dev/log local0
+    log /dev/log local1 notice
+    daemon
+    maxconn 256
+
+defaults
+  log global
+  mode tcp
+  option tcplog
+  timeout connect 10s
+  timeout client 1m
+  timeout server 1m
+
+frontend postgresql
+  bind *:{{ haproxy_port }}
+  default_backend pgpool_cluster
+
+backend pgpool_cluster
+  balance roundrobin
+  option tcp-check
+{% for node in pg_nodes %}
+  server {{ node.name }} {{ node.ip }}:{{ pgpool_port }} check
+{% endfor %}

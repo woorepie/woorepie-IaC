@@ -1,0 +1,179 @@
+- name: Configure PostgreSQL HA
+  hosts: pgnode
+  become: yes
+
+  vars:
+    pg_version: "16"
+    pg_vip: "10.2.100.100"
+    pg_interface: "ens160"
+    pgpool_port: 9999
+    haproxy_port: 5433
+    vip_router_id: 51
+    pg_nodes:
+      - { name: db01, ip: 10.2.100.21 }
+      - { name: db02, ip: 10.2.100.22 }
+      - { name: db03, ip: 10.2.100.23 }
+
+  tasks:
+    - name: Enable non-local bind for VIP
+      ansible.builtin.sysctl:
+        name: net.ipv4.ip_nonlocal_bind
+        value: '1'
+        state: present
+        sysctl_set: yes
+        reload: yes
+
+    - name: 로컬에서만 실행
+      when: inventory_hostname == "db01"
+      delegate_to: localhost
+      ansible.builtin.debug:
+        msg: "이건 db01에서만 로컬로 실행됨"
+
+#    - name: Fix broken apt cache
+#     shell: |
+#        rm -rf /var/lib/apt/lists/*
+#        apt clean
+#        apt update
+
+#    - name: Install required packages
+#      ansible.builtin.apt:
+#        name:
+#          - postgresql
+#          - postgresql-{{ pg_version }}-pgpool2
+#          - pgpool2
+#          - haproxy
+#          - keepalived
+#          - net-tools
+#          - openssl
+#        state: present
+#        update_cache: yes
+
+    - name: Initialize PostgreSQL cluster if not present
+      ansible.builtin.shell: |
+        if [ ! -d "/var/lib/postgresql/{{ pg_version }}/main/base" ]; then
+          pg_createcluster {{ pg_version }} main --start
+        fi
+      args:
+        creates: "/var/lib/postgresql/{{ pg_version }}/main/base"
+
+    - name: Deploy postgresql.conf
+      ansible.builtin.template:
+        src: templates/postgresql.conf.j2
+        dest: "/etc/postgresql/{{ pg_version }}/main/postgresql.conf"
+        owner: postgres
+        group: postgres
+      notify: Restart PostgreSQL
+
+    - name: Configure keepalived for VIP
+      ansible.builtin.template:
+        src: templates/keepalived.conf.j2
+        dest: /etc/keepalived/keepalived.conf
+
+    - name: Configure haproxy
+      ansible.builtin.template:
+        src: templates/haproxy.cfg.j2
+        dest: /etc/haproxy/haproxy.cfg
+
+    - name: Configure pgpool2
+      ansible.builtin.template:
+        src: templates/pgpool.conf.j2
+        dest: /etc/pgpool2/pgpool.conf
+
+    - name: Generate PCP password hash (only on master)
+      command: "openssl passwd -1 pgpoolpass"
+      register: pcp_output
+      when: inventory_hostname == 'db01'
+
+    - name: Set PCP password fact (on master)
+      set_fact:
+        master_pcp_hash: "{{ pcp_output.stdout }}"
+      when: inventory_hostname == 'db01'
+
+    - name: Copy pcp.conf to all nodes
+      ansible.builtin.copy:
+        dest: /etc/pgpool2/pcp.conf
+        content: "pgpool:{{ hostvars['db01'].master_pcp_hash }}"
+
+    - name: Deploy .pgpass file
+      ansible.builtin.copy:
+        dest: /var/lib/postgresql/.pgpass
+        content: "*:*:*:postgres:pgpass"
+        owner: postgres
+        group: postgres
+        mode: '0600'
+
+    - name: Add pgpool and replication access to pg_hba.conf
+      ansible.builtin.blockinfile:
+        path: "/etc/postgresql/{{ pg_version }}/main/pg_hba.conf"
+        block: |
+          host    all             all             10.2.100.0/24           md5
+          host    all             pgpool          10.2.100.0/24           md5
+          host    replication     replicator      10.2.100.0/24           md5
+        insertafter: EOF
+      notify: Restart PostgreSQL
+
+    - name: Create health_monitor user for pgpool health checks
+      ansible.builtin.shell: |
+        sudo -u postgres psql -d postgres <<'EOF'
+        DO $$ BEGIN
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'health_monitor') THEN
+          CREATE ROLE health_monitor WITH LOGIN PASSWORD 'securepass';
+        END IF;
+        END $$;
+        EOF
+      when: inventory_hostname == 'db01'
+
+    - name: Grant CONNECT to health_monitor user
+      ansible.builtin.shell: |
+        sudo -u postgres psql -d postgres <<'EOF'
+        DO $$ BEGIN
+        GRANT CONNECT ON DATABASE postgres TO health_monitor;
+        END $$;
+        EOF
+      when: inventory_hostname == 'db01'
+
+    - name: Create pgpool check user
+      ansible.builtin.shell: |
+        sudo -u postgres psql -d postgres <<'EOF'
+        DO $$ BEGIN
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'pgpool') THEN
+          CREATE ROLE pgpool WITH LOGIN PASSWORD 'pgpass';
+        END IF;
+        END $$;
+        EOF
+      when: inventory_hostname == 'db01'
+
+    - name: Create streaming replication user
+      ansible.builtin.shell: |
+        sudo -u postgres psql -d postgres <<'EOF'
+        DO $$ BEGIN
+        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'pgpool') THEN
+          CREATE ROLE pgpool WITH LOGIN PASSWORD 'pgpass';
+        END IF;
+        END $$;
+        EOF
+      when: inventory_hostname == 'db01'
+
+    - name: Ensure pgpool_node_id exists per node
+      copy:
+        dest: /etc/pgpool2/pgpool_node_id
+        content: "{{ item }}"
+      loop: ["0", "1", "2"]
+      when: inventory_hostname == pg_nodes[item | int].name
+
+    - name: Restart all services
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: restarted
+        enabled: yes
+      loop:
+        - keepalived
+        - haproxy
+        - pgpool2
+        - postgresql
+
+  handlers:
+    - name: Restart PostgreSQL
+      ansible.builtin.service:
+        name: postgresql
+        state: restarted
