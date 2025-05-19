@@ -1,0 +1,65 @@
+listen_addresses = '*'
+port = {{ pgpool_port }}
+
+# PostgreSQL backend 설정
+{% for idx in range(pg_nodes | length) %}
+backend_hostname{{ idx }} = '{{ pg_nodes[idx].ip }}'
+backend_port{{ idx }} = 5432
+backend_weight{{ idx }} = 1
+backend_flag{{ idx }} = 'ALLOW_TO_FAILOVER'
+{% endfor %}
+
+# Health check (backend용)
+health_check_period = 10
+health_check_timeout = 20
+health_check_user = 'health_monitor'
+health_check_password = 'securepass'
+health_check_database = 'postgres'
+{% for idx in range(pg_nodes | length) %}
+health_check_host{{ idx }} = '{{ pg_nodes[idx].ip }}'
+{% endfor %}
+
+# Streaming Replication check
+sr_check_user = 'postgres'
+sr_check_password = 'pgpass'
+sr_check_period = 10
+
+# Watchdog 설정 시작
+use_watchdog = off
+delegate_IP = '{{ pg_vip }}'
+
+
+# 각 노드 설정
+{% for idx in range(pg_nodes | length) %}
+wd_hostname{{ idx }} = '{{ pg_nodes[idx].name }}'
+wd_port{{ idx }} = 9000
+wd_priority{{ idx }} = 1
+{% endfor %}
+
+# Lifecheck: heartbeat 방식
+lifecheck_method = 'heartbeat'
+wd_lifecheck_method = 'heartbeat'
+wd_interval = 10
+wd_heartbeat_port = 9694
+wd_heartbeat_keepalive = 2
+wd_heartbeat_deadtime = 30
+
+# Heartbeat 목적지 설정
+{% if inventory_hostname == pg_nodes[0].name %}
+heartbeat_destination0 = '{{ pg_nodes[1].ip }}'
+heartbeat_destination1 = '{{ pg_nodes[2].ip }}'
+{% elif inventory_hostname == pg_nodes[1].name %}
+heartbeat_destination0 = '{{ pg_nodes[0].ip }}'
+heartbeat_destination1 = '{{ pg_nodes[2].ip }}'
+{% elif inventory_hostname == pg_nodes[2].name %}
+heartbeat_destination0 = '{{ pg_nodes[0].ip }}'
+heartbeat_destination1 = '{{ pg_nodes[1].ip }}'
+{% endif %}
+
+heartbeat_destination_port0 = 9694
+heartbeat_destination_port1 = 9694
+heartbeat_device0 = '{{ pg_interface }}'
+heartbeat_device1 = '{{ pg_interface }}'
+
+# Consensus (선택 사항)
+enable_consensus_with_half_votes = on
