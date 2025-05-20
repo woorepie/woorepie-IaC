@@ -139,3 +139,69 @@ resource "aws_vpc_endpoint" "s3" {
     Name = "woorepie-vpce-s3"
   }
 }
+
+# 🔒 Public Security Group
+resource "aws_security_group" "public_sg" {
+  name        = "woorepie-public-sg"
+  description = "Allow SSH and Redis"
+  vpc_id      = aws_vpc.woorepie_vpc.id
+
+  tags = {
+    Name = "woorepie-public-sg"
+  }
+}
+
+resource "aws_vpc_security_group_ingress_rule" "public_ssh" {
+  security_group_id = aws_security_group.public_sg.id
+  from_port         = var.ssh_port
+  to_port           = var.ssh_port
+  ip_protocol       = "tcp"
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "public_redis" {
+  security_group_id = aws_security_group.public_sg.id
+  from_port         = var.redis_port
+  to_port           = var.redis_port
+  ip_protocol       = "tcp"
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
+resource "aws_vpc_security_group_egress_rule" "public_all_outbound" {
+  security_group_id = aws_security_group.public_sg.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
+# 🔒 Private Security Group
+resource "aws_security_group" "private_sg" {
+  name        = "woorepie-private-sg"
+  description = "Allow HTTPS and VPC internal"
+  vpc_id      = aws_vpc.woorepie_vpc.id
+
+  tags = {
+    Name = "woorepie-private-sg"
+  }
+}
+
+resource "aws_vpc_security_group_ingress_rule" "private_https" {
+  security_group_id = aws_security_group.private_sg.id
+  from_port         = var.https_port
+  to_port           = var.https_port
+  ip_protocol       = "tcp"
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "private_internal" {
+  security_group_id = aws_security_group.private_sg.id
+  from_port         = 0
+  to_port           = 65535
+  ip_protocol       = "tcp"
+  cidr_ipv4         = var.private_cidr_block
+}
+
+resource "aws_vpc_security_group_egress_rule" "private_all_outbound" {
+  security_group_id = aws_security_group.private_sg.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "0.0.0.0/0"
+}
