@@ -176,7 +176,7 @@ resource "aws_vpc_security_group_egress_rule" "public_all_outbound" {
 # 🔒 Private Security Group
 resource "aws_security_group" "private_sg" {
   name        = "woorepie-private-sg"
-  description = "Allow HTTPS and VPC internal"
+  description = "Allow full TCP and internal HTTPS"
   vpc_id      = aws_vpc.woorepie_vpc.id
 
   tags = {
@@ -184,18 +184,18 @@ resource "aws_security_group" "private_sg" {
   }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "private_https" {
+resource "aws_vpc_security_group_ingress_rule" "private_all_tcp" {
   security_group_id = aws_security_group.private_sg.id
-  from_port         = var.https_port
-  to_port           = var.https_port
+  from_port         = 0
+  to_port           = 65535
   ip_protocol       = "tcp"
   cidr_ipv4         = "0.0.0.0/0"
 }
 
-resource "aws_vpc_security_group_ingress_rule" "private_internal" {
+resource "aws_vpc_security_group_ingress_rule" "private_https_internal" {
   security_group_id = aws_security_group.private_sg.id
-  from_port         = 0
-  to_port           = 65535
+  from_port         = var.https_port
+  to_port           = var.https_port
   ip_protocol       = "tcp"
   cidr_ipv4         = var.private_cidr_block
 }
