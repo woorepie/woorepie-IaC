@@ -102,6 +102,13 @@
         group: postgres
         mode: '0600'
 
+    # - name: Add md5 auth for all connections from 10.2.100.0/24
+    #   ansible.builtin.blockinfile:
+    #     path: "/etc/pgpool2/pool_hba.conf"
+    #     block: |
+    #       host all all 10.2.100.0/24 md5
+    #     insertafter: EOF
+
     - name: Add pgpool and replication access to pg_hba.conf
       ansible.builtin.blockinfile:
         path: "/etc/postgresql/{{ pg_version }}/main/pg_hba.conf"
