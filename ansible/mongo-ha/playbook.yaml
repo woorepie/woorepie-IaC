@@ -1,0 +1,23 @@
+- name: Append MongoDB HAProxy block
+  hosts: mongo
+  become: yes
+  vars:
+    mongo_nodes:
+      - name: mongo1
+        ip: 10.2.100.21
+      - name: mongo2
+        ip: 10.2.100.22
+      - name: mongo3
+        ip: 10.2.100.23
+  tasks:
+    - name: Append MongoDB block using external template
+      blockinfile:
+        path: /etc/haproxy/haproxy.cfg
+        marker: "# {mark} ANSIBLE MANAGED BLOCK - MONGODB"
+        block: "{{ lookup('template', 'templates/mongodb.j2') }}"
+        create: yes
+
+    - name: Reload HAProxy
+      service:
+        name: haproxy
+        state: reloaded

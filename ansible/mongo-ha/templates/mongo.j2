@@ -1,0 +1,13 @@
+frontend mongodb_frontend
+  bind *:27017
+  default_backend mongodb_backend
+
+backend mongodb_backend
+  mode tcp
+  option tcp-check
+  tcp-check connect
+  tcp-check send-binary 3a000000100000000000000d61646d696e2e636d640000ffff
+  tcp-check expect binary 4a000000
+{% for node in mongo_nodes %}
+  server {{ node.name }} {{ node.ip }}:27017 check inter 3s fall 3 rise 2
+{% endfor %}
