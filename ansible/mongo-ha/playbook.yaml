@@ -1,7 +1,13 @@
 - name: Append MongoDB HAProxy block
   hosts: mongo
   become: yes
+  
   vars:
+    vip_address: 10.2.100.100
+    network_interface: ens160
+    router_id: 51
+    auth_pass: 42keepalived
+    priority: 100   # 노드별로 override 가능 (host_vars로 관리 가능)
     mongo_nodes:
       - name: mongo1
         ip: 10.2.100.21
@@ -17,6 +23,22 @@
         block: "{{ lookup('template', 'templates/mongodb.j2') }}"
         create: yes
 
+    - name: Ensure chk_haproxy script is installed
+      template:
+        src: templates/chk_haproxy.sh.j2
+        dest: /usr/local/bin/chk_haproxy.sh
+        mode: '0755'
+
+    - name: Deploy keepalived.conf
+      template:
+        src: templates/keepalived.conf.j2
+        dest: /etc/keepalived/keepalived.conf
+        mode: '0644'
+
+    - name: Restart keepalived
+      service:
+        name: keepalived
+        
     - name: Reload HAProxy
       service:
         name: haproxy
