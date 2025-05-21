@@ -7,6 +7,9 @@ module "network" {
   redis_port         = var.redis_port
   https_port         = var.https_port
   private_cidr_block = var.private_cidr_block
+  http_port          = var.http_port
+  app_port           = var.app_port
+  monitoring_port    = var.monitoring_port
 }
 
 output "public_sg" {
