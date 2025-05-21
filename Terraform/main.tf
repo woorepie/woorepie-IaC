@@ -12,10 +12,20 @@ module "network" {
   monitoring_port    = var.monitoring_port
 }
 
-output "public_sg" {
-  value = module.network.public_sg_id
+data "aws_iam_role" "eks_cluster_role" {
+  name = "EKSClusterRole"
 }
 
-output "private_sg" {
-  value = module.network.private_sg_id
+data "aws_iam_role" "eks_node_role" {
+  name = "EKSNodeRole"
+}
+
+module "eks" {
+  source = "./modules/eks"
+
+  vpc_id             = module.network.vpc_id
+  private_subnet_ids = module.network.private_subnet_ids
+
+  eks_cluster_role_name = data.aws_iam_role.eks_cluster_role.name
+  eks_node_role_name    = data.aws_iam_role.eks_node_role.name
 }
