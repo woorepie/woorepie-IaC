@@ -48,3 +48,19 @@ variable "app_access_cidr" {
   description = "CIDR allowed to access app"
 }
 
+variable "jenkins_irsa_role_name" {
+  description = "IAM role name for Jenkins IRSA"
+  type        = string
+}
+
+variable "jenkins_namespace" {
+  description = "Kubernetes namespace for Jenkins"
+  type        = string
+  default     = "jenkins"
+}
+
+variable "jenkins_service_account_name" {
+  description = "ServiceAccount name for Jenkins"
+  type        = string
+  default     = "jenkins"
+}

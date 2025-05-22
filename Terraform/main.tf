@@ -89,7 +89,7 @@ resource "null_resource" "wait_for_eks" {
 # ServiceAccount 연결
 resource "kubernetes_service_account" "alb_controller_sa" {
   depends_on = [null_resource.wait_for_eks]
-  
+
   metadata {
     name      = "aws-load-balancer-controller"
     namespace = "kube-system"
@@ -97,4 +97,23 @@ resource "kubernetes_service_account" "alb_controller_sa" {
       "eks.amazonaws.com/role-arn" = aws_iam_role.alb_controller.arn
     }
   }
+}
+
+data "aws_iam_role" "jenkins_irsa_role" {
+  name = var.jenkins_irsa_role_name
+}
+
+resource "kubernetes_service_account" "jenkins_sa" {
+  metadata {
+    name      = var.jenkins_service_account_name
+    namespace = var.jenkins_namespace
+    annotations = {
+      "eks.amazonaws.com/role-arn" = data.aws_iam_role.jenkins_irsa_role.arn
+    }
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "jenkins_irsa_s3" {
+  role       = data.aws_iam_role.jenkins_irsa_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 }
