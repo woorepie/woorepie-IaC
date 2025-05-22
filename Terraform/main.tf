@@ -29,3 +29,72 @@ module "eks" {
   eks_cluster_role_name = data.aws_iam_role.eks_cluster_role.name
   eks_node_role_name    = data.aws_iam_role.eks_node_role.name
 }
+
+
+
+
+data "aws_caller_identity" "current" {}
+
+data "aws_eks_cluster" "eks" {
+  name = module.eks.cluster_name
+}
+
+data "aws_eks_cluster_auth" "eks" {
+  name = module.eks.cluster_name
+}
+
+
+resource "aws_iam_role" "alb_controller" {
+  name = "alb-controller-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = {
+        Federated = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/${replace(data.aws_eks_cluster.eks.identity[0].oidc[0].issuer, "https://", "")}"
+      },
+      Action = "sts:AssumeRoleWithWebIdentity",
+      Condition = {
+        StringEquals = {
+          "${replace(data.aws_eks_cluster.eks.identity[0].oidc[0].issuer, "https://", "")}:sub" = "system:serviceaccount:kube-system:aws-load-balancer-controller"
+        }
+      }
+    }]
+  })
+}
+
+
+data "aws_iam_policy" "alb_controller" {
+  name = "AWSLoadBalancerControllerIAMPolicy"
+}
+
+# 정책 첨부
+resource "aws_iam_role_policy_attachment" "attach_alb_policy" {
+  role = aws_iam_role.alb_controller.name
+  policy_arn = data.aws_iam_policy.alb_controller.arn
+}
+
+# Kubernetes Provider
+provider "kubernetes" {
+  host                   = data.aws_eks_cluster.eks.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.eks.token
+}
+
+resource "null_resource" "wait_for_eks" {
+  depends_on = [module.eks]
+}
+
+# ServiceAccount 연결
+resource "kubernetes_service_account" "alb_controller_sa" {
+  depends_on = [null_resource.wait_for_eks]
+  
+  metadata {
+    name      = "aws-load-balancer-controller"
+    namespace = "kube-system"
+    annotations = {
+      "eks.amazonaws.com/role-arn" = aws_iam_role.alb_controller.arn
+    }
+  }
+}
