@@ -24,6 +24,8 @@ resource "aws_subnet" "public1" {
   map_public_ip_on_launch = true
   tags = {
     Name = "woorepie-subnet-public1-ap-northeast-2a"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+    "kubernetes.io/role/elb"           = "1"
   }
 }
 
@@ -34,6 +36,8 @@ resource "aws_subnet" "public2" {
   map_public_ip_on_launch = true
   tags = {
     Name = "woorepie-subnet-public2-ap-northeast-2c"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+    "kubernetes.io/role/elb"           = "1"
   }
 }
 

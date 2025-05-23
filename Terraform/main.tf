@@ -10,6 +10,7 @@ module "network" {
   http_port          = var.http_port
   app_port           = var.app_port
   monitoring_port    = var.monitoring_port
+  cluster_name       = var.cluster_name
 }
 
 data "aws_iam_role" "eks_cluster_role" {
@@ -32,6 +33,7 @@ module "eks" {
 
 
 
+#################################################
 
 data "aws_caller_identity" "current" {}
 
@@ -63,6 +65,7 @@ resource "aws_iam_role" "alb_controller" {
     }]
   })
 }
+
 
 
 data "aws_iam_policy" "alb_controller" {
@@ -103,7 +106,15 @@ data "aws_iam_role" "jenkins_irsa_role" {
   name = var.jenkins_irsa_role_name
 }
 
+resource "kubernetes_namespace" "jenkins" {
+  metadata {
+    name = var.jenkins_namespace
+  }
+}
+
 resource "kubernetes_service_account" "jenkins_sa" {
+  depends_on = [kubernetes_namespace.jenkins]
+  
   metadata {
     name      = var.jenkins_service_account_name
     namespace = var.jenkins_namespace
@@ -117,3 +128,107 @@ resource "aws_iam_role_policy_attachment" "jenkins_irsa_s3" {
   role       = data.aws_iam_role.jenkins_irsa_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
 }
+
+
+
+# ##############################################
+
+provider "helm" {
+  kubernetes {
+    host                   = data.aws_eks_cluster.eks.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.eks.token
+  }
+}
+
+
+# Cluster Autoscaler Helm 설치
+resource "helm_release" "cluster_autoscaler" {
+  name       = "cluster-autoscaler"
+  namespace  = "kube-system"
+  repository = "https://kubernetes.github.io/autoscaler"
+  chart      = "cluster-autoscaler"
+  version    = "9.29.0"
+  create_namespace = false
+
+  set {
+    name  = "autoDiscovery.clusterName"
+    value = module.eks.cluster_name
+  }
+
+  set {
+    name  = "awsRegion"
+    value = var.region
+  }
+
+  set {
+    name  = "rbac.create"
+    value = "true"
+  }
+
+  set {
+    name  = "extraArgs.balance-similar-node-groups"
+    value = "true"
+  }
+
+  set {
+    name  = "extraArgs.skip-nodes-with-system-pods"
+    value = "false"
+  }
+
+  set {
+    name  = "extraArgs.skip-nodes-with-local-storage"
+    value = "false"
+  }
+
+  set {
+    name  = "nodeSelector.kubernetes\\.io/os"
+    value = "linux"
+  }
+
+  set {
+    name  = "tolerations[0].operator"
+    value = "Exists"
+  }
+
+  depends_on = [module.eks]
+}
+
+
+# AWS Load Balancer Controller Helm 설치
+resource "helm_release" "aws_load_balancer_controller" {
+  name       = "aws-load-balancer-controller"
+  namespace  = "kube-system"
+  repository = "https://aws.github.io/eks-charts"
+  chart      = "aws-load-balancer-controller"
+  version    = "1.7.1"
+  create_namespace = false
+
+  set {
+    name  = "clusterName"
+    value = module.eks.cluster_name
+  }
+
+  set {
+    name  = "region"
+    value = var.region
+  }
+
+  set {
+    name  = "vpcId"
+    value = module.network.vpc_id
+  }
+
+  set {
+    name  = "serviceAccount.create"
+    value = "false"
+  }
+
+  set {
+    name  = "serviceAccount.name"
+    value = kubernetes_service_account.alb_controller_sa.metadata[0].name
+  }
+
+  depends_on = [kubernetes_service_account.alb_controller_sa]
+}
+

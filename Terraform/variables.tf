@@ -1,3 +1,9 @@
+variable "region" {
+  description = "AWS region"
+  type        = string
+  default     = "ap-northeast-2"
+}
+
 variable "vpc_cidr" {
   type        = string
   description = "CIDR block for the VPC"
@@ -63,4 +69,9 @@ variable "jenkins_service_account_name" {
   description = "ServiceAccount name for Jenkins"
   type        = string
   default     = "jenkins"
+}
+
+variable "cluster_name" {
+  description = "EKS cluster name"
+  type        = string
 }

@@ -33,3 +33,8 @@ variable "monitoring_port" {
 variable "private_cidr_block" {
   type = string
 }
+
+variable "cluster_name" {
+  description = "EKS cluster name"
+  type        = string
+}
