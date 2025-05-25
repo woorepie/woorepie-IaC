@@ -17,3 +17,8 @@ variable "eks_node_role_name" {
   type        = string
   description = "IAM Role name for worker nodes"
 }
+
+variable "ebs_csi_policy_arn" {
+  description = "Amazon EBS CSI Driver Policy ARN"
+  type        = string
+}

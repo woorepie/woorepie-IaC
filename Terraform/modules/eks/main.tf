@@ -40,6 +40,10 @@ module "eks" {
       iam_role_name  = var.eks_node_role_name
 
       subnet_ids = var.private_subnet_ids
+
+      iam_role_additional_policies = {
+        ebs_csi = var.ebs_csi_policy_arn
+      }
     }
   }
 

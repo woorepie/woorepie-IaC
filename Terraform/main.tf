@@ -29,6 +29,7 @@ module "eks" {
 
   eks_cluster_role_name = data.aws_iam_role.eks_cluster_role.name
   eks_node_role_name    = data.aws_iam_role.eks_node_role.name
+  ebs_csi_policy_arn    = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
 }
 
 
@@ -129,7 +130,7 @@ resource "aws_iam_role_policy_attachment" "jenkins_irsa_s3_full" {
 
 resource "aws_iam_role_policy_attachment" "ebs_policy" {
   role       = aws_iam_role.ebs_csi_irsa.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEBSCSIDriverPolicy"
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
 }
 
 # Kubernetes Provider
@@ -183,7 +184,6 @@ provider "helm" {
     token                  = data.aws_eks_cluster_auth.eks.token
   }
 }
-
 
 # Cluster Autoscaler Helm 설치
 resource "helm_release" "cluster_autoscaler" {
@@ -290,5 +290,11 @@ resource "helm_release" "aws_load_balancer_controller" {
 #   # depends_on = [
 #   #   kubernetes_service_account.jenkins_sa
 #   # ]
+# }
+
+# # KMS 키 관련
+# resource "aws_kms_alias" "this" {
+#   name          = "alias/eks/woorepie-eks"
+#   target_key_id = aws_kms_key.this[0].key_id # 또는 실제 키 리소스 명
 # }
 
