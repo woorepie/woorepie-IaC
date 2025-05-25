@@ -24,6 +24,10 @@ module "eks" {
     coredns = {
       most_recent = true
     }
+    # ebs-csi = {
+    #   addon_version     = "v1.43.0-eksbuild.1"
+    #   resolve_conflicts = "OVERWRITE"
+    # }
   }
 
   eks_managed_node_groups = {

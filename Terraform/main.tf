@@ -38,7 +38,8 @@ module "eks" {
 data "aws_caller_identity" "current" {}
 
 data "aws_eks_cluster" "eks" {
-  name = module.eks.cluster_name
+  name       = module.eks.cluster_name
+  depends_on = [module.eks]
 }
 
 data "aws_eks_cluster_auth" "eks" {
@@ -66,7 +67,45 @@ resource "aws_iam_role" "alb_controller" {
   })
 }
 
+resource "aws_iam_role" "jenkins_irsa" {
+  name = var.jenkins_irsa_role_name
 
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = {
+        Federated = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/${replace(data.aws_eks_cluster.eks.identity[0].oidc[0].issuer, "https://", "")}"
+      },
+      Action = "sts:AssumeRoleWithWebIdentity",
+      Condition = {
+        StringEquals = {
+          "${replace(data.aws_eks_cluster.eks.identity[0].oidc[0].issuer, "https://", "")}:sub" = "system:serviceaccount:${var.jenkins_namespace}:${var.jenkins_service_account_name}"
+        }
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role" "ebs_csi_irsa" {
+  name = "ebs-csi-irsa-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = {
+        Federated = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/${replace(data.aws_eks_cluster.eks.identity[0].oidc[0].issuer, "https://", "")}"
+      },
+      Action = "sts:AssumeRoleWithWebIdentity",
+      Condition = {
+        StringEquals = {
+          "${replace(data.aws_eks_cluster.eks.identity[0].oidc[0].issuer, "https://", "")}:sub" = "system:serviceaccount:kube-system:ebs-csi-controller-sa"
+        }
+      }
+    }]
+  })
+}
 
 data "aws_iam_policy" "alb_controller" {
   name = "AWSLoadBalancerControllerIAMPolicy"
@@ -74,8 +113,23 @@ data "aws_iam_policy" "alb_controller" {
 
 # 정책 첨부
 resource "aws_iam_role_policy_attachment" "attach_alb_policy" {
-  role = aws_iam_role.alb_controller.name
+  role       = aws_iam_role.alb_controller.name
   policy_arn = data.aws_iam_policy.alb_controller.arn
+}
+
+resource "aws_iam_role_policy_attachment" "jenkins_irsa_ecr_poweruser" {
+  role       = data.aws_iam_role.jenkins_irsa_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
+}
+
+resource "aws_iam_role_policy_attachment" "jenkins_irsa_s3_full" {
+  role       = data.aws_iam_role.jenkins_irsa_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "ebs_policy" {
+  role       = aws_iam_role.ebs_csi_irsa.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEBSCSIDriverPolicy"
 }
 
 # Kubernetes Provider
@@ -112,22 +166,11 @@ resource "kubernetes_namespace" "jenkins" {
   }
 }
 
-resource "kubernetes_service_account" "jenkins_sa" {
-  depends_on = [kubernetes_namespace.jenkins]
-  
-  metadata {
-    name      = var.jenkins_service_account_name
-    namespace = var.jenkins_namespace
-    annotations = {
-      "eks.amazonaws.com/role-arn" = data.aws_iam_role.jenkins_irsa_role.arn
-    }
-  }
-}
 
-resource "aws_iam_role_policy_attachment" "jenkins_irsa_s3" {
-  role       = data.aws_iam_role.jenkins_irsa_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
-}
+# resource "aws_iam_role_policy_attachment" "jenkins_irsa_s3" {
+#   role       = data.aws_iam_role.jenkins_irsa_role.name
+#   policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+# }
 
 
 
@@ -144,11 +187,11 @@ provider "helm" {
 
 # Cluster Autoscaler Helm 설치
 resource "helm_release" "cluster_autoscaler" {
-  name       = "cluster-autoscaler"
-  namespace  = "kube-system"
-  repository = "https://kubernetes.github.io/autoscaler"
-  chart      = "cluster-autoscaler"
-  version    = "9.29.0"
+  name             = "cluster-autoscaler"
+  namespace        = "kube-system"
+  repository       = "https://kubernetes.github.io/autoscaler"
+  chart            = "cluster-autoscaler"
+  version          = "9.29.0"
   create_namespace = false
 
   set {
@@ -197,11 +240,11 @@ resource "helm_release" "cluster_autoscaler" {
 
 # AWS Load Balancer Controller Helm 설치
 resource "helm_release" "aws_load_balancer_controller" {
-  name       = "aws-load-balancer-controller"
-  namespace  = "kube-system"
-  repository = "https://aws.github.io/eks-charts"
-  chart      = "aws-load-balancer-controller"
-  version    = "1.7.1"
+  name             = "aws-load-balancer-controller"
+  namespace        = "kube-system"
+  repository       = "https://aws.github.io/eks-charts"
+  chart            = "aws-load-balancer-controller"
+  version          = "1.7.1"
   create_namespace = false
 
   set {
@@ -231,4 +274,21 @@ resource "helm_release" "aws_load_balancer_controller" {
 
   depends_on = [kubernetes_service_account.alb_controller_sa]
 }
+
+########### Jenkins pod 관련 ###############
+
+# resource "helm_release" "jenkins" {
+#   name             = "jenkins"
+#   namespace        = var.jenkins_namespace
+#   repository       = "https://charts.jenkins.io"
+#   chart            = "jenkins"
+#   version          = "5.1.13"
+#   create_namespace = true
+
+#   values = [file("${path.root}/../Helm/jenkins/jenkins-values.yaml")]
+
+#   # depends_on = [
+#   #   kubernetes_service_account.jenkins_sa
+#   # ]
+# }
 
