@@ -275,26 +275,3 @@ resource "helm_release" "aws_load_balancer_controller" {
   depends_on = [kubernetes_service_account.alb_controller_sa]
 }
 
-########### Jenkins pod 관련 ###############
-
-# resource "helm_release" "jenkins" {
-#   name             = "jenkins"
-#   namespace        = var.jenkins_namespace
-#   repository       = "https://charts.jenkins.io"
-#   chart            = "jenkins"
-#   version          = "5.1.13"
-#   create_namespace = true
-
-#   values = [file("${path.root}/../Helm/jenkins/jenkins-values.yaml")]
-
-#   # depends_on = [
-#   #   kubernetes_service_account.jenkins_sa
-#   # ]
-# }
-
-# # KMS 키 관련
-# resource "aws_kms_alias" "this" {
-#   name          = "alias/eks/woorepie-eks"
-#   target_key_id = aws_kms_key.this[0].key_id # 또는 실제 키 리소스 명
-# }
-

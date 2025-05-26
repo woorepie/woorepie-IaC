@@ -36,7 +36,7 @@ module "eks" {
       max_capacity     = 3
       min_capacity     = 1
 
-      instance_types = ["t3.medium"]
+      instance_types = ["m6i.xlarge"]
       iam_role_name  = var.eks_node_role_name
 
       subnet_ids = var.private_subnet_ids
