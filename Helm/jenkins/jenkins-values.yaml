@@ -1,0 +1,90 @@
+controller:
+  admin:
+    existingSecret: jenkins-admin-secret    # secret 리소스 이름
+    usernameKey: JENKINS_ADMIN_ID          # username 필드
+    passwordKey: JENKINS_ADMIN_PASSWORD    # password 필드
+
+  numExecutors: 1
+
+  env:
+    - name: TZ
+      value: Asia/Seoul
+
+  serviceType: ClusterIP
+
+  serviceAccount:
+    create: true
+    name: jenkins
+    annotations:
+      eks.amazonaws.com/role-arn: arn:aws:iam::572390531726:role/woorepie-jenkins-irsa-role
+
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: gp2
+
+  ingress:
+    enabled: true
+    ingressClassName: alb
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443},{"HTTP":80}]'
+      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-northeast-2:572390531726:certificate/e167d222-67bf-4c82-9530-44ac1bf8545c
+      alb.ingress.kubernetes.io/ssl-redirect: '443'
+    hosts:
+      - host: jenkins.woorepie.site
+        paths:
+          - /
+
+  jenkinsUrl: "https://jenkins.woorepie.site/"
+
+  installPlugins:
+    - kubernetes
+    - workflow-aggregator
+    - git
+    - gradle
+    - docker-workflow
+    - amazon-ecr
+    - credentials
+    - pipeline-stage-view
+    - blueocean
+    - configuration-as-code
+    - aws-credentials
+    - ws-cleanup
+
+  resources:
+    requests:
+      cpu: "1000m"
+      memory: "1024Mi"
+    limits:
+      cpu: "2000m"
+      memory: "2048Mi"
+
+  image:
+    registry: 572390531726.dkr.ecr.ap-northeast-2.amazonaws.com
+    repository: woorepie/jenkins
+    tag: controller-v1.0.3
+    pullPolicy: Always
+
+  startupProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 60  # 초기 대기 시간 60초로 증가
+    periodSeconds: 20        # 체크 주기 20초
+    failureThreshold: 30     # 실패 허용 횟수 30회
+
+  initContainer: false
+  imagePullSecrets:
+    - name: ecr-creds
+
+  JCasC:
+    configScripts:
+      kubernetes-cloud: |
+        jenkins:
+          clouds:
+            - kubernetes:
+                name: "kubernetes"
+                serverUrl: "https://kubernetes.default.svc.cluster.local"
+                namespace: "jenkins"
