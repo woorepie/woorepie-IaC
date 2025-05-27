@@ -53,9 +53,10 @@ securityContext: {}
 # This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
 service:
   # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
-  type: ClusterIP
+  type: NodePort
   # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
   port: 8080
+  nodePort: 30080
 
 # This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
 ingress:
@@ -131,5 +132,4 @@ env:
   KAFKA_IP: "10.2.100.11:9092,10.2.100.12:9092,10.2.100.13:9092"
   KAFKA_CONSUMER_GROUP: "spring-consumer-group"
   POSTGRESQL_URL: "jdbc:postgresql://localhost:5432/mydb"
-  REDIS_HOST: "localhost"
   REDIS_PORT: "6379"
