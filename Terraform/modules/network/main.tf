@@ -24,6 +24,8 @@ resource "aws_subnet" "public1" {
   map_public_ip_on_launch = true
   tags = {
     Name = "woorepie-subnet-public1-ap-northeast-2a"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+    "kubernetes.io/role/elb"           = "1"
   }
 }
 
@@ -34,6 +36,8 @@ resource "aws_subnet" "public2" {
   map_public_ip_on_launch = true
   tags = {
     Name = "woorepie-subnet-public2-ap-northeast-2c"
+    "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+    "kubernetes.io/role/elb"           = "1"
   }
 }
 
@@ -204,4 +208,38 @@ resource "aws_vpc_security_group_egress_rule" "private_all_outbound" {
   security_group_id = aws_security_group.private_sg.id
   ip_protocol       = "-1"
   cidr_ipv4         = "0.0.0.0/0"
+}
+
+# HTTP from anywhere
+resource "aws_vpc_security_group_ingress_rule" "private_http" {
+  security_group_id = aws_security_group.private_sg.id
+  from_port         = var.http_port
+  to_port           = var.http_port
+  ip_protocol       = "tcp"
+  cidr_ipv4         = "0.0.0.0/0"
+}
+
+# 22, 8000, 9001 from public SG
+resource "aws_vpc_security_group_ingress_rule" "private_from_public_ssh" {
+  security_group_id            = aws_security_group.private_sg.id
+  from_port                    = var.ssh_port
+  to_port                      = var.ssh_port
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.public_sg.id
+}
+
+resource "aws_vpc_security_group_ingress_rule" "private_from_public_app" {
+  security_group_id            = aws_security_group.private_sg.id
+  from_port                    = var.app_port
+  to_port                      = var.app_port
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.public_sg.id
+}
+
+resource "aws_vpc_security_group_ingress_rule" "private_from_public_monitoring" {
+  security_group_id            = aws_security_group.private_sg.id
+  from_port                    = var.monitoring_port
+  to_port                      = var.monitoring_port
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.public_sg.id
 }
