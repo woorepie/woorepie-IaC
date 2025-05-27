@@ -54,8 +54,6 @@ spec:
               value: {{ .Values.env.KAFKA_CONSUMER_GROUP | quote }}
             - name: POSTGRESQL_URL
               value: {{ .Values.env.POSTGRESQL_URL | quote }}
-            - name: REDIS_HOST
-              value: {{ .Values.env.REDIS_HOST | quote }}
             - name: REDIS_PORT
               value: {{ .Values.env.REDIS_PORT | quote }}
             - name: ACCESS_KEY_ID
@@ -93,6 +91,11 @@ spec:
                 secretKeyRef:
                   name: was-secret
                   key: SMS_PHONE_NUMBER
+            - name: REDIS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: was-secret
+                  key: REDIS_HOST
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
