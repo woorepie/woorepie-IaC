@@ -8,6 +8,7 @@ metadata:
   labels:
     app: jenkins-kaniko
 spec:
+  serviceAccountName: jenkins
   containers:
   - name: jnlp  # ✅ 커스텀 에이전트 (Dockerfile.agent 기반)
     image: 572390531726.dkr.ecr.ap-northeast-2.amazonaws.com/woorepie/jenkins:agent-v1.0.2
@@ -21,18 +22,10 @@ spec:
     command: ['sleep']
     args: ['infinity']
     volumeMounts:
-      - name: docker-config
-        mountPath: /kaniko/.docker
       - name: workspace-volume
         mountPath: /home/jenkins/agent
 
   volumes:
-  - name: docker-config
-    secret:
-      secretName: ecr-creds  # ECR 인증 시크릿
-      items:
-        - key: .dockerconfigjson
-          path: config.json
   - name: workspace-volume
     emptyDir: {}
 """
@@ -108,7 +101,7 @@ spec:
             }
         }
 
-        stage('Update Helm Values') {  // ✅ ArgoCD 연동 활성화
+        stage('Update Helm Values') { // ✅ 변경사항 있을 때만 커밋/푸시
             steps {
                 container('jnlp') {
                     withCredentials([usernamePassword(
@@ -117,24 +110,24 @@ spec:
                         passwordVariable: 'GIT_TOKEN'
                     )]) {
                         sh """
-                            # IaC 레포지토리 클론
                             git clone ${INFRA_REPO}
                             cd woorepie-IaC
-                            git checkout feat/helm/#10-helm
+                            git checkout helm
 
                             # values.yaml 업데이트
                             sed -i "s|tag: .*|tag: ${env.IMAGE_TAG}|g" Helm/was/values.yaml
 
-                            # 변경사항 푸시
-                            git config user.name "Jenkins"
-                            git config user.email "jenkins@woorepie.site"
-                            
-                            # 인증 정보 포함된 remote로 변경
-                            git remote set-url origin https://$GIT_USER:$GIT_TOKEN@github.com/woorepie/woorepie-IaC.git
-
                             git add Helm/was/values.yaml
-                            git commit -m "🔧edit: Update WAS image tag to ${env.IMAGE_TAG}"
-                            git push origin feat/helm/#10-helm
+
+                            if ! git diff --cached --exit-code --quiet; then
+                              git config user.name "Jenkins"
+                              git config user.email "jenkins@woorepie.site"
+                              git remote set-url origin https://$GIT_USER:$GIT_TOKEN@github.com/woorepie/woorepie-IaC.git
+                              git commit -m "🔧edit: Update WAS image tag to ${env.IMAGE_TAG}"
+                              git push origin helm
+                            else
+                              echo "No changes to commit."
+                            fi
                         """
                     }
                 }
