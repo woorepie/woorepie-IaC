@@ -12,7 +12,29 @@ module "network" {
   monitoring_port    = var.monitoring_port
   cluster_name       = var.cluster_name
 }
+  
+module "static_web" {
+  source          = "./modules/static_web"
+  bucket_name     = var.bucket_name
+  team_user_arns  = var.team_user_arns
+  cloudfront_arn  = var.cloudfront_arn
+}
 
+module "cache" {
+  source             = "./modules/cache"
+  cluster_id         = var.cluster_id
+  node_type          = var.node_type
+  num_cache_nodes    = var.num_cache_nodes
+  port               = var.redis_port
+  subnet_group_name  = var.subnet_group_name
+  subnet_ids         = module.network.private_subnet_ids
+  security_group_ids = [module.network.private_sg_id]
+}
+
+output "public_sg" {
+  value = module.network.public_sg_id
+}
+  
 data "aws_iam_role" "eks_cluster_role" {
   name = "EKSClusterRole"
 }
