@@ -141,3 +141,4 @@ env:
   KAFKA_CONSUMER_GROUP: "spring-consumer-group"
   POSTGRESQL_URL: "jdbc:postgresql://192.168.0.222:9999/woorepie"
   REDIS_PORT: "6379"
+  FRONT_URL: "https://house.woorepie.site:3000,http://house.woorepie.site:3000"

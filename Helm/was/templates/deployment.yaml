@@ -48,6 +48,8 @@ spec:
           env:
             - name: BUCKET_NAME
               value: {{ .Values.env.BUCKET_NAME | quote }}
+            - name: FRONT_URL
+              value: {{ .Values.env.FRONT_URL | quote }}
             - name: KAFKA_IP
               value: {{ .Values.env.KAFKA_IP | quote }}
             - name: KAFKA_CONSUMER_GROUP
