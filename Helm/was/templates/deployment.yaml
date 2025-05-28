@@ -96,6 +96,11 @@ spec:
                 secretKeyRef:
                   name: was-secret
                   key: REDIS_HOST
+            - name: FRONT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: was-secret
+                  key: FRONT_URL
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
