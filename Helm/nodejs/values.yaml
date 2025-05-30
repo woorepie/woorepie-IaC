@@ -136,6 +136,6 @@ affinity: {}
 
 
 env:
-  MONGODB_URI: "mongodb://10.2.100.100:27016/?replicaSet=rs0/woorepie"
+  MONGODB_URI: "mongodb://10.2.100.100:27016/woorepie?replicaSet=rs0"
   KAFKA_BROKER: "192.168.0.231:9092,192.168.0.232:9092,192.168.0.233:9092"
   AMOY_RPC_URL: "https://rpc-amoy.polygon.technology"
