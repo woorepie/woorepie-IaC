@@ -70,7 +70,7 @@ ingress:
   hosts:
     - host: nodejs.woorepie.site
       paths:
-        - path: /nodejs
+        - path: /
           pathType: Prefix
   tls: []
   #  - secretName: chart-example-tls
