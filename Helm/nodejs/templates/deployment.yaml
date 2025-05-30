@@ -45,6 +45,28 @@ spec:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
+          env:
+            - name: MONGODB_URI
+              value: {{ .Values.env.MONGODB_URI | quote }}
+            - name: KAFKA_BROKER
+              value: {{ .Values.env.KAFKA_BROKER | quote }}
+            - name: AMOY_RPC_URL
+              value: {{ .Values.env.AMOY_RPC_URL | quote }}
+            - name: ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: nodejs-secret
+                  key: ACCESS_KEY_ID
+            - name: PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nodejs-secret
+                  key: PRIVATE_KEY
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: nodejs-secret
+                  key: SLACK_WEBHOOK_URL
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
