@@ -52,11 +52,11 @@ spec:
               value: {{ .Values.env.KAFKA_BROKER | quote }}
             - name: AMOY_RPC_URL
               value: {{ .Values.env.AMOY_RPC_URL | quote }}
-            - name: ACCESS_KEY_ID
+            - name: ENCRYPTION_KEY
               valueFrom:
                 secretKeyRef:
                   name: nodejs-secret
-                  key: ACCESS_KEY_ID
+                  key: ENCRYPTION_KEY
             - name: PRIVATE_KEY
               valueFrom:
                 secretKeyRef:
