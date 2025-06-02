@@ -111,6 +111,11 @@ spec:
                 secretKeyRef:
                   name: was-secret
                   key: OPENAI_API
+            - name: PERPLEXITY_API
+              valueFrom:
+                secretKeyRef:
+                  name: was-secret
+                  key: PERPLEXITY_API
             
           {{- with .Values.livenessProbe }}
           livenessProbe:
