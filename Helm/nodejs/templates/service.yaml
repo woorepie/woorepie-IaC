@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "was-app.fullname" . }}
+  name: {{ include "nodejs.fullname" . }}
   labels:
-    {{- include "was-app.labels" . | nindent 4 }}
+    {{- include "nodejs.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -15,4 +15,4 @@ spec:
       nodePort: {{ .Values.service.nodePort }}
       {{- end }}
   selector:
-    {{- include "was-app.selectorLabels" . | nindent 4 }}
+    {{- include "nodejs.selectorLabels" . | nindent 4 }}
