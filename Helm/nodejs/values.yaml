@@ -62,14 +62,10 @@ service:
 # This block is for setting up the ingress for more information can be found here: https://kubernetes.io/docs/concepts/services-networking/ingress/
 ingress:
   enabled: true
-  className: alb
-  annotations:
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/group.name: nodejs-alb
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+  className: nginx
+  annotations: {}
   hosts:
-    - host: nodejs.woorepie.site
+    - host: woorepie.fisa.com
       paths:
         - path: /
           pathType: Prefix
