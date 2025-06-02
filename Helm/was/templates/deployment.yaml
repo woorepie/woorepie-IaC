@@ -101,6 +101,17 @@ spec:
                 secretKeyRef:
                   name: was-secret
                   key: FRONT_URL
+            - name: VWORLD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: was-secret
+                  key: VWORLD_API_KEY
+            - name: OPENAI_API
+              valueFrom:
+                secretKeyRef:
+                  name: was-secret
+                  key: OPENAI_API
+            
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
