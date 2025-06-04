@@ -10,14 +10,14 @@ metadata:
 spec:
   serviceAccountName: jenkins
   containers:
-  - name: jnlp  # ✅ 커스텀 에이전트 (Dockerfile.agent 기반)
+  - name: jnlp  # 커스텀 에이전트 (Dockerfile.agent 기반)
     image: 572390531726.dkr.ecr.ap-northeast-2.amazonaws.com/woorepie/jenkins:agent-v1.0.2
     args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
     volumeMounts:
       - name: workspace-volume
         mountPath: /home/jenkins/agent
 
-  - name: kaniko  # ✅ Kaniko 컨테이너
+  - name: kaniko  # Kaniko 컨테이너
     image: gcr.io/kaniko-project/executor:debug
     command: ['sleep']
     args: ['infinity']
@@ -101,7 +101,7 @@ spec:
             }
         }
 
-        stage('Update Helm Values') { // ✅ 변경사항 있을 때만 커밋/푸시
+        stage('Update Helm Values') { // 변경사항 있을 때만 커밋/푸시
             steps {
                 container('jnlp') {
                     withCredentials([usernamePassword(
@@ -114,8 +114,9 @@ spec:
                             cd woorepie-IaC
                             git checkout helm
 
-                            # values.yaml 업데이트
-                            sed -i "s|tag: .*|tag: ${env.IMAGE_TAG}|g" Helm/was/values.yaml
+                            # IMAGE_TAG를 따옴표로 감싸는 shell 변수 선언
+                            IMAGE_TAG_WITH_QUOTE="\\\"${env.IMAGE_TAG}\\\""
+                            sed -i "s|tag: .*|tag: \${IMAGE_TAG_WITH_QUOTE}|g" Helm/was/values.yaml
 
                             git add Helm/was/values.yaml
 
