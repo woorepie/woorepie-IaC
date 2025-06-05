@@ -81,17 +81,17 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
-resources: {}
+resources:
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little
   # resources, such as Minikube. If you do want to specify resources, uncomment the following
   # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
+    cpu: "1"
+    memory: "2Gi"
 
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 livenessProbe:
@@ -143,5 +143,5 @@ env:
   BUCKET_NAME: "woorepie-bucket-was"
   KAFKA_IP: "192.168.0.231:9092,192.168.0.232:9092,192.168.0.233:9092"
   KAFKA_CONSUMER_GROUP: "spring-consumer-group"
-  POSTGRESQL_URL: "jdbc:postgresql://192.168.0.222:9999/woorepie"
+  POSTGRESQL_URL: "jdbc:postgresql://192.168.0.222:5433/woorepie"
   REDIS_PORT: "6379"
