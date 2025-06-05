@@ -99,7 +99,7 @@ livenessProbe:
   failureThreshold: 5
 readinessProbe:
   httpGet:
-    path: /wooreadmin/ealth
+    path: /wooreadmin/health
     port: http
   initialDelaySeconds: 30
   periodSeconds: 10
