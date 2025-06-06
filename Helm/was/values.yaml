@@ -87,8 +87,8 @@ resources:
   # resources, such as Minikube. If you do want to specify resources, uncomment the following
   # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
   requests:
-    cpu: "500m"
-    memory: "1Gi"
+    cpu: "750m"
+    memory: "1.5Gi"
   limits:
     cpu: "1"
     memory: "2Gi"
@@ -116,7 +116,7 @@ autoscaling:
   enabled: true
   minReplicas: 3
   maxReplicas: 20
-  targetCPUUtilizationPercentage: 70
+  targetCPUUtilizationPercentage: 60
   # targetMemoryUtilizationPercentage: 80
 
 # Additional volumes on the output Deployment definition.
