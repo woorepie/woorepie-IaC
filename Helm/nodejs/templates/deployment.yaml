@@ -67,6 +67,11 @@ spec:
                 secretKeyRef:
                   name: nodejs-secret
                   key: SLACK_WEBHOOK_URL
+            - name: REGICHAIN
+              valueFrom:
+                secretKeyRef:
+                  name: nodejs-secret
+                  key: REGICHAIN
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
