@@ -1,0 +1,116 @@
+pipeline {
+    agent {
+        kubernetes {
+            yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app: jenkins-kaniko
+spec:
+  serviceAccountName: jenkins
+  containers:
+  - name: jnlp
+    image: 572390531726.dkr.ecr.ap-northeast-2.amazonaws.com/woorepie/jenkins:nodejs-agent-v1.0.0
+    args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
+    volumeMounts:
+      - name: workspace-volume
+        mountPath: /home/jenkins/agent
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:debug
+    command: ['sleep']
+    args: ['infinity']
+    volumeMounts:
+      - name: workspace-volume
+        mountPath: /home/jenkins/agent
+  volumes:
+  - name: workspace-volume
+    emptyDir: {}
+"""
+        }
+    }
+    environment {
+        ECR_REPO = "572390531726.dkr.ecr.ap-northeast-2.amazonaws.com/woorepie/nodejs"  // Node.js용
+        INFRA_REPO = "https://github.com/woorepie/woorepie-IaC.git"
+    }
+    stages {
+        stage('Checkout & Set Tag') {
+            steps {
+                container('jnlp') {
+                    git url: 'https://github.com/woorepie/woorepie-nodejs.git',
+                        branch: 'dev'
+                    script {
+                        env.IMAGE_TAG = sh(
+                            script: "git rev-parse --short HEAD",
+                            returnStdout: true
+                        ).trim()
+                        env.FULL_IMAGE = "${env.ECR_REPO}:${env.IMAGE_TAG}"
+                        echo "Docker Image Tag: ${env.IMAGE_TAG}"
+                    }
+                }
+            }
+        }
+        stage('Build') {
+            steps {
+                container('jnlp') {
+                    // prod만 설치 (빌드가 필요하다면 npm run build 추가)
+                    sh '''
+                        npm ci --only=production
+                    '''
+                }
+            }
+        }
+        stage('Docker Build & Push') {
+            steps {
+                container('kaniko') {
+                    sh """
+                        /kaniko/executor \\
+                          --context=/home/jenkins/agent/workspace/${env.JOB_NAME} \\
+                          --dockerfile=/home/jenkins/agent/workspace/${env.JOB_NAME}/Dockerfile \\
+                          --destination=${env.FULL_IMAGE} \\
+                          --cache=true \\
+                          --verbosity=debug
+                    """
+                }
+            }
+        }
+        stage('Update Helm Values') {
+            steps {
+                container('jnlp') {
+                    withCredentials([usernamePassword(
+                        credentialsId: 'github-token',
+                        usernameVariable: 'GIT_USER',
+                        passwordVariable: 'GIT_TOKEN'
+                    )]) {
+                        sh """
+                            git clone ${INFRA_REPO}
+                            cd woorepie-IaC
+                            git checkout helm
+
+                            # IMAGE_TAG를 따옴표로 감싸는 shell 변수 선언
+                            IMAGE_TAG_WITH_QUOTE="\\\"${env.IMAGE_TAG}\\\""
+                            sed -i "s|tag: .*|tag: \${IMAGE_TAG_WITH_QUOTE}|g" Helm/nodejs/values.yaml
+
+                            git add Helm/nodejs/values.yaml
+
+                            if ! git diff --cached --exit-code --quiet; then
+                              git config user.name "Jenkins"
+                              git config user.email "jenkins@woorepie.site"
+                              git remote set-url origin https://$GIT_USER:$GIT_TOKEN@github.com/woorepie/woorepie-IaC.git
+                              git commit -m "🔧edit: Update NODEJS image tag to ${env.IMAGE_TAG}"
+                              git push origin helm
+                            else
+                              echo "No changes to commit."
+                            fi
+                        """
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
