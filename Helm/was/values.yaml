@@ -142,6 +142,6 @@ affinity: {}
 env:
   BUCKET_NAME: "woorepie-bucket-was"
   KAFKA_IP: "192.168.0.231:9092,192.168.0.232:9092,192.168.0.233:9092"
-  KAFKA_CONSUMER_GROUP: "spring-consumer-group"
+  KAFKA_CONSUMER_GROUP: "spring-consumer-was-group"
   POSTGRESQL_URL: "jdbc:postgresql://192.168.0.100:5433/woorepie"
   REDIS_PORT: "6379"
